@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criador de Template Meta</title>
+<style>body{margin:0}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ferramenta em duas colunas — entrada (mensagem com tags) à esquerda, saídas (texto Meta, mapeamento, JSON) à direita */
+:root {
+  --bg: #f3f5f4; --surface: #ffffff; --fg: #18211e; --muted: #5b6863; --line: #d7dedb;
+  --accent: #0f7a5c; --accent-soft: #e1f2ec; --tag: #7a4b0f; --tag-soft: #fbefdc;
+  --warn: #9a5b00; --warn-soft: #fff4dd; --err: #b3261e; --err-soft: #fde8e6;
+  --bubble: #dcf5e6;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121715; --surface: #1a211e; --fg: #e4ebe8; --muted: #93a19b; --line: #2d3733;
+  --accent: #4fc79f; --accent-soft: #173229; --tag: #f0b465; --tag-soft: #3a2a14;
+  --warn: #f0b465; --warn-soft: #33270f; --err: #ff8a80; --err-soft: #3b1a18; --bubble: #1e3a2d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121715; --surface: #1a211e; --fg: #e4ebe8; --muted: #93a19b; --line: #2d3733;
+  --accent: #4fc79f; --accent-soft: #173229; --tag: #f0b465; --tag-soft: #3a2a14;
+  --warn: #f0b465; --warn-soft: #33270f; --err: #ff8a80; --err-soft: #3b1a18; --bubble: #1e3a2d; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; margin-bottom: 20px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0; font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+label { font-size: 13px; font-weight: 500; display: flex; flex-direction: column; gap: 4px; }
+label small { font-weight: 400; color: var(--muted); }
+.typebar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 20px; }
+.typebar label { width: min(100%, 300px); }
+select { font: 500 14px var(--font-ui); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.chipsbox { display: flex; flex-direction: column; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 12px var(--font-mono); color: var(--tag); background: var(--tag-soft); }
+.chips button:hover { border-color: var(--tag); }
+input[type=text], textarea { font: 13px/1.55 var(--font-mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+textarea { min-height: 190px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; }
+.row > label { flex: 1 1 180px; }
+.check { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
+button { font: 500 12px var(--font-ui); color: var(--accent); background: var(--accent-soft); border: 1px solid transparent; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btns span { color: var(--muted); font-size: 12px; }
+pre.out { margin: 0; font: 13px/1.6 var(--font-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; }
+.var { color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 0 2px; font-weight: 500; }
+.tag { color: var(--tag); background: var(--tag-soft); border-radius: 3px; padding: 0 2px; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+td input[type=text] { padding: 5px 8px; font-size: 12px; }
+td.n { font-family: var(--font-mono); white-space: nowrap; }
+td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
+.empty { color: var(--muted); font-style: italic; }
+.alerts { display: flex; flex-direction: column; gap: 6px; }
+.alert { border-radius: 6px; padding: 7px 10px; font-size: 13px; border-left: 3px solid; }
+.alert.err { background: var(--err-soft); border-color: var(--err); }
+.alert.warn { background: var(--warn-soft); border-color: var(--warn); }
+.alert.ok { background: var(--accent-soft); border-color: var(--accent); }
+.bubble { align-self: flex-start; max-width: 100%; background: var(--bubble); border-radius: 0 10px 10px 10px; padding: 8px 12px; white-space: pre-wrap; word-break: break-word; font-size: 14px; box-sizing: border-box; }
+.meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.toast { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Criador de Template Meta</h1>
+    <p>Cole a mensagem com as tags do sistema, como <span class="tag">[MOTORISTA]</span> ou <span class="tag">{{NOMECLIENTE}}</span>. A ferramenta gera o texto com <span class="var">{{n}}</span> para cadastrar na Meta e o JSON de envio.</p>
+  </header>
+
+  <div class="typebar">
+    <label for="tplType">Tipo de template
+      <select id="tplType"></select></label>
+    <span class="meta" id="typeDesc"></span>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <section>
+        <h2>Entrada</h2>
+        <div class="row">
+          <label for="tplName">Nome do template na Meta <small>minúsculas, números e _</small>
+            <input type="text" id="tplName" value="enviar_bm" spellcheck="false"></label>
+          <label for="dest">Tag do destinatário <small>telefone de quem recebe</small>
+            <input type="text" id="dest" value="[TELEFONECONTATO]" spellcheck="false"></label>
+        </div>
+        <label for="src">Mensagem com tags
+          <textarea id="src" spellcheck="false"></textarea></label>
+        <div class="chipsbox">
+          <span class="meta">Tags disponíveis. Clique para inserir no cursor:</span>
+          <div class="chips" id="chips"></div>
+        </div>
+        <div class="btns">
+          <button type="button" id="clear">Limpar</button>
+        </div>
+        <label class="check" for="reuse"><input type="checkbox" id="reuse" checked> Tag repetida usa o mesmo número (ex.: [LOCADORA] = {{2}} nas duas vezes)</label>
+      </section>
+
+      <section>
+        <h2>Validação Meta</h2>
+        <div class="alerts" id="alerts"></div>
+      </section>
+
+      <section>
+        <h2>Prévia no WhatsApp</h2>
+        <div class="bubble" id="preview"></div>
+        <div class="meta">Usa os valores de exemplo da tabela de variáveis.</div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section>
+        <h2>Texto para a Meta <button type="button" data-copy="meta">Copiar</button></h2>
+        <pre class="out" id="metaOut"></pre>
+        <div class="meta" id="metaInfo"></div>
+      </section>
+
+      <section>
+        <h2>Variáveis</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Variável</th><th>Tag do sistema</th><th>Exemplo (exigido no cadastro)</th><th>Usos</th></tr></thead>
+            <tbody id="map"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>JSON de envio <button type="button" data-copy="json">Copiar</button></h2>
+        <pre class="out" id="jsonOut"></pre>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// Tipos de template: tags disponíveis (t), valor de exemplo (ex), descrição (d) e se a tag gera várias linhas (multi)
+const ROTAS_TAGS = [
+  { t: "CONTATOLOCATARIO", ex: "Maria", d: "Contato do locatário" },
+  { t: "LOCATARIO", ex: "Construtora Alfa", d: "Locatário" },
+  { t: "LOCADORA", ex: "Locadora Exemplo", d: "Locadora" },
+  { t: "MOTORISTA", ex: "João Silva", d: "Motorista" },
+  { t: "TIPOATIVIDADE", ex: "Entrega", d: "Tipo da atividade" },
+  { t: "NUMERO", ex: "12345", d: "Número da atividade" },
+  { t: "PRODUTOS", ex: "Betoneira 400L", d: "Equipamentos" },
+  { t: "ENDERECO", ex: "Rua das Flores, 100 - Centro", d: "Endereço" }
+];
+const TYPES = {
+  ativida_concluida: {
+    group: "Rotas", label: "Atividade concluída", desc: "Rotas: aviso de atividade concluída pelo motorista.",
+    name: "ativida_concluida", dest: "[TELEFONECONTATO]",
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] acabou de concluir a [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS].\nAté a próxima!",
+    tags: ROTAS_TAGS
+  },
+  motorista_chegou: {
+    group: "Rotas", label: "Motorista chegou", desc: "Rotas: aviso de chegada do motorista ao endereço.",
+    name: "motorista_chegou", dest: "[TELEFONECONTATO]",
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS] acabou de chegar ao seu endereço: [ENDERECO].\n\nQualquer dúvida entre em contato através do número: (31)3688-1750.",
+    tags: ROTAS_TAGS
+  },
+  motorista_a_caminho: {
+    group: "Rotas", label: "Motorista a caminho", desc: "Rotas: aviso de motorista a caminho, com link de acompanhamento do trajeto.",
+    name: "motorista_a_caminho", dest: "[TELEFONECONTATO]",
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS] está a caminho do seu endereço: [ENDERECO].\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
+    tags: ROTAS_TAGS.concat({ t: "LINKACOMPANHAMENTOTRAJETO", ex: "https://rotas.exemplo.com/t/AB12CD", d: "Link de acompanhamento do trajeto" })
+  },
+  fatura: {
+    group: "Faturamento", label: "Envio de fatura", desc: "Envio da nota fiscal pelo WhatsApp Oficial (Meta).",
+    name: "envio_fatura", dest: "[TELEFONECONTATO]",
+    text: "Olá, [Cliente]!\nSegue a nota fiscal nº [Numero da NF], emitida em [Dt Emissao], no valor de [Valor da NF].\nEla é referente à ficha de locação [Numero da ficha], período de [Periodo fatura].\nQualquer dúvida, estamos à disposição.",
+    tags: [
+      { t: "Cliente", ex: "Construtora Alfa", d: "Nome do destinatário da nota" },
+      { t: "Numero da NF", ex: "004512", d: "Número da nota fiscal" },
+      { t: "Valor da NF", ex: "R$ 3.450,00", d: "Valor total da nota fiscal" },
+      { t: "Dt Emissao", ex: "19/10/2026", d: "Data de emissão da nota fiscal" },
+      { t: "Numero da ficha", ex: "1287", d: "Número da ficha de locação que deu origem à nota" },
+      { t: "Endereco entrega", ex: "Rua das Flores, 100 - Centro", d: "Endereço do local da obra/ponto de entrega" },
+      { t: "Periodo fatura", ex: "01/09/2026 a 30/09/2026", d: "Período de referência da fatura" },
+      { t: "Docto Tomador", ex: "12.345.678/0001-90", d: "CNPJ/CPF do tomador do serviço" },
+      { t: "Parcelas faturamento", ex: "1ª R$ 1.725,00 venc. 20/10/2026; 2ª R$ 1.725,00 venc. 20/11/2026", d: "Tabela com valor e vencimento das parcelas", multi: true }
+    ]
+  },
+  boletim: {
+    group: "Faturamento", label: "Boletim de medição", desc: "Envio do boletim de medição pelo WhatsApp Oficial (Meta).",
+    name: "enviar_bm", dest: "[TELEFONECONTATO]",
+    text: "Olá, [CLIENTE]!\nSegue o boletim de medição da ficha de locação [FICHA], referente ao período de [PERIODO_FAT], no valor total de [VL_TOTAL].\nObra/entrega: [ENDERECO_ENTREGA]. Data base: [DATA_BASE].\nQualquer dúvida, estamos à disposição.",
+    tags: [
+      { t: "CLIENTE", ex: "Construtora Alfa", d: "Nome do cliente destinatário" },
+      { t: "FICHA", ex: "1287", d: "Número da ficha de locação" },
+      { t: "ENDERECO_ENTREGA", ex: "Rua das Flores, 100 - Centro", d: "Endereço da obra/entrega" },
+      { t: "PERIODO_FAT", ex: "01/09/2026 a 30/09/2026", d: "Período do faturamento" },
+      { t: "DATA_BASE", ex: "30/09/2026", d: "Data base da geração da fatura" },
+      { t: "VL_TOTAL", ex: "R$ 3.450,00", d: "Valor total do boletim de medição" }
+    ]
+  },
+  car_vencido: {
+    group: "Notificações", label: "CAR vencido", desc: "Cobrança de título vencido (contas a receber).", curly: true,
+    name: "car_vencido", dest: "[TELEFONECONTATO]",
+    text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nIdentificamos que o título da fatura {{NUMEROFATURA}}, no valor de {{VALORTITULO}}, venceu em {{DATAVENCIMENTO}}.\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nSe o pagamento já foi feito, desconsidere esta mensagem.",
+    tags: "RAZAOSOCIAL NOMEFANTASIA ORIGEM NUMEROCAR DATAVENCIMENTO NRDOCLAN NUMEROFATURA VALORTITULO NUMEROBOLETO EMAILCOBRADORA CNPJCOBRADORA NOMECLIENTE CODIGOBARRASBOLETO"
+  },
+  car_vencer: {
+    group: "Notificações", label: "CAR a vencer", desc: "Lembrete de título a vencer (contas a receber).", curly: true,
+    name: "car_a_vencer", dest: "[TELEFONECONTATO]",
+    text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nLembramos que o título da fatura {{NUMEROFATURA}}, no valor de {{VALORTITULO}}, vence em {{DATAVENCIMENTO}}.\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
+    tags: "RAZAOSOCIAL NOMEFANTASIA NUMEROCAR ORIGEM DATAVENCIMENTO NRDOCLAN NUMEROFATURA VALORTITULO NUMEROBOLETO EMAILCOBRADORA CNPJCOBRADORA NOMECLIENTE CODIGOBARRASBOLETO"
+  },
+  renovacao: {
+    group: "Notificações", label: "Renovação", desc: "Aviso de renovação/reajuste de contrato.", curly: true,
+    name: "renovacao_contrato", dest: "[TELEFONECONTATO]",
+    text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nO contrato {{CONTRATO}} será reajustado em {{PROXREAJUSTE}} pelo índice {{INDICECORRECAO}}, com variação de {{VALPERCENTUAL}}.\nValor atual: {{VALNOMINAL}}\nValor corrigido: {{VALCORRIGIDO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
+    tags: "RAZAOSOCIAL NOMEFANTASIA EMAILCOBRADORA CNPJCOBRADORA CONTRATO TABELAEQUIP* NOMECLIENTE CPFCNPJ END_ENTREGRA CID_ENTREGA NUM_ENTREGA CEP_ENTREGA UF_ENTREGA PERIODO NOMEENTREGA PROXREAJUSTE PROXGERACAO DTINICIAL DTFINALFATURAMENTO DTFINAL DESCINDFIN VALNOMINAL INDICECORRECAO VALPERCENTUAL VALCORRIGIDO"
+  },
+  nfse: {
+    group: "Notificações", label: "NFS-e", desc: "Envio da nota fiscal de serviço eletrônica.", curly: true,
+    name: "envio_nfse", dest: "[TELEFONECONTATO]",
+    text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nA NFS-e nº {{NFE_NUMERO}}, emitida em {{DT_EMISSAO_NF}}, no valor de {{VALORNOTA}}, já está disponível.\nVencimento: {{DATAVENCIMENTO}}\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
+    tags: "RAZAOSOCIAL NOMEFANTASIA NFE_NUMERO VALORNOTA DT_EMISSAO_NF EMAILCOBRADORA DATAVENCIMENTO CNPJCOBRADORA CPFCNPJCLIENTE RAZAOSOCIALCLIENTE NOMECLIENTE CODIGOBARRASBOLETO"
+  }
+};
+// Exemplos das tags de notificação; tag com * na lista gera várias linhas
+const NOTIF_EX = { RAZAOSOCIAL: "Locadora Exemplo Ltda", NOMEFANTASIA: "Locadora Exemplo", ORIGEM: "Fatura", NUMEROCAR: "88231",
+  DATAVENCIMENTO: "25/10/2026", NRDOCLAN: "45120", NUMEROFATURA: "004512", VALORTITULO: "R$ 3.450,00", NUMEROBOLETO: "000123456",
+  EMAILCOBRADORA: "financeiro@locadoraexemplo.com.br", CNPJCOBRADORA: "11.222.333/0001-44", NOMECLIENTE: "Construtora Alfa",
+  CODIGOBARRASBOLETO: "34191.79001 01043.510047 91020.150008 1 96610000345000", CONTRATO: "7781", TABELAEQUIP: "Betoneira 400L - 2 un.",
+  CPFCNPJ: "12.345.678/0001-90", END_ENTREGRA: "Rua das Flores", CID_ENTREGA: "Belo Horizonte", NUM_ENTREGA: "100", CEP_ENTREGA: "30110-000",
+  UF_ENTREGA: "MG", PERIODO: "Mensal", NOMEENTREGA: "Obra Centro", PROXREAJUSTE: "01/11/2026", PROXGERACAO: "01/11/2026",
+  DTINICIAL: "01/11/2025", DTFINALFATURAMENTO: "31/10/2026", DTFINAL: "31/10/2027", DESCINDFIN: "IGP-M", VALNOMINAL: "R$ 3.450,00",
+  INDICECORRECAO: "IGP-M", VALPERCENTUAL: "4,5%", VALCORRIGIDO: "R$ 3.605,25", NFE_NUMERO: "2291", VALORNOTA: "R$ 3.450,00",
+  DT_EMISSAO_NF: "19/10/2026", CPFCNPJCLIENTE: "12.345.678/0001-90", RAZAOSOCIALCLIENTE: "Construtora Alfa Ltda" };
+Object.values(TYPES).forEach(T => {
+  if (typeof T.tags === "string") T.tags = T.tags.split(" ").map(s => {
+    const t = s.replace("*", "");
+    return { t, ex: NOTIF_EX[t] ?? "", d: s.endsWith("*") ? "Tabela com várias linhas" : t, multi: s.endsWith("*") };
+  });
+});
+const wrapTag = t => TYPES[curType].curly ? "{{" + t + "}}" : "[" + t + "]";
+const drafts = {};   // edições por tipo, para não perder ao trocar
+let curType = Object.keys(TYPES)[0];
+const tagInfo = tag => TYPES[curType].tags.find(x => x.t === tag);
+
+const $ = id => document.getElementById(id);
+const TAG_RE = /\[([^\[\]\n]+)\]|\{\{([^{}\n]+)\}\}/g;   // aceita [TAG] e {{TAG}}
+const examples = {};   // tag/var -> exemplo digitado
+let state = { meta: "", json: "", vars: [] };
+
+function esc(s) { return s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+function convert() {
+  const src = $("src").value;
+  const reuse = $("reuse").checked;
+  const vars = [];          // {n, tag, uses}
+  const byTag = {};
+  const meta = src.replace(TAG_RE, (m, a, b) => {
+    const tag = (a ?? b).trim();
+    if (b !== undefined && /^\d+$/.test(tag)) return m;   // {{1}} já numerado fica como está
+    let v = reuse ? byTag[tag] : null;
+    if (!v) { v = { n: vars.length + 1, tag, raw: m, uses: 0 }; vars.push(v); if (reuse) byTag[tag] = v; }
+    v.uses++;
+    return "{{" + v.n + "}}";
+  });
+
+  const params = {};
+  vars.forEach(v => params[v.n] = v.raw);
+  const json = JSON.stringify({ template: $("tplName").value.trim(), destinatario: $("dest").value.trim(), params }, null, 4);
+  state = { meta, json, vars };
+
+  $("metaOut").innerHTML = meta ? esc(meta).replace(/\{\{\d+\}\}/g, m => `<span class="var">${m}</span>`) : '<span class="empty">Cole uma mensagem para começar.</span>';
+  $("metaInfo").textContent = `${meta.length} / 1024 caracteres no corpo · ${vars.length} variáve${vars.length === 1 ? "l" : "is"}`;
+  $("jsonOut").textContent = json;
+  renderMap(vars);
+  renderPreview();
+  validate(src, meta, vars);
+}
+
+function exampleKey(v) { return $("reuse").checked ? v.tag : v.tag + "#" + v.n; }
+
+function renderMap(vars) {
+  const tb = $("map");
+  if (!vars.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">Nenhuma tag [TAG] ou {{TAG}} encontrada.</td></tr>'; return; }
+  tb.innerHTML = vars.map(v => {
+    const k = exampleKey(v);
+    const val = examples[k] ?? tagInfo(v.tag)?.ex ?? "";
+    return `<tr><td class="n"><span class="var">{{${v.n}}}</span></td><td><span class="tag">${esc(v.raw)}</span></td>
+      <td><input type="text" id="ex-${v.n}" data-k="${esc(k)}" value="${esc(val).replace(/"/g, "&quot;")}" placeholder="valor de exemplo"></td>
+      <td class="uses">${v.uses}×</td></tr>`;
+  }).join("");
+  tb.querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => { examples[inp.dataset.k] = inp.value; renderPreview(); validateExamples(); }));
+}
+
+function getExample(v) { const k = exampleKey(v); return examples[k] ?? tagInfo(v.tag)?.ex ?? ""; }
+
+function renderPreview() {
+  const map = {};
+  state.vars.forEach(v => map[v.n] = getExample(v) || `{{${v.n}}}`);
+  $("preview").textContent = state.meta.replace(/\{\{(\d+)\}\}/g, (m, n) => map[n]) || "—";
+}
+
+let baseAlerts = [];
+function validate(src, meta, vars) {
+  const a = [];
+  const name = $("tplName").value.trim();
+  if (!name) a.push(["err", "Informe o nome do template."]);
+  else if (!/^[a-z0-9_]+$/.test(name)) a.push(["err", "Nome do template só aceita letras minúsculas, números e _ (sem acento ou espaço)."]);
+  if (!/^(\[[^\[\]\n]+\]|\{\{[^{}\n]+\}\})$/.test($("dest").value.trim())) a.push(["warn", "O destinatário deveria ser uma única tag, ex.: [TELEFONECONTATO]."]);
+  const t = meta.trim();
+  if (t) {
+    if (/^\{\{\d+\}\}/.test(t)) a.push(["err", "A Meta rejeita mensagem que começa com variável. Coloque um texto antes, ex.: \"Olá, {{1}}\"."]);
+    if (/\{\{\d+\}\}[\s.!?]*$/.test(t)) a.push(["err", "A Meta rejeita mensagem que termina com variável. Adicione um texto fixo no final."]);
+    if (/\}\}\s*\(?\s*\{\{/.test(meta)) a.push(["err", "Há variáveis coladas, ex.: {{1}}{{2}}, {{1}} {{2}} ou {{1}}({{2}}). Separe com texto fixo, como \"{{1}}, aqui é da {{2}}\"."]);
+    if (meta.length > 1024) a.push(["err", `Corpo com ${meta.length} caracteres. O limite da Meta é 1024.`]);
+    const words = t.replace(/\{\{\d+\}\}/g, " ").split(/\s+/).filter(w => /[A-Za-zÀ-ÿ]/.test(w)).length;
+    if (vars.length && words < vars.length * 2) a.push(["warn", "Muitas variáveis para pouco texto fixo. A Meta pode recusar o template por isso."]);
+    if (/\n{3,}/.test(meta)) a.push(["warn", "Há mais de uma linha em branco seguida. A Meta pode recusar."]);
+    const unknown = vars.filter(v => !tagInfo(v.tag)).map(v => v.raw);
+    if (unknown.length) a.push(["warn", `Tag fora da lista de ${TYPES[curType].label}: ${unknown.join(", ")}. Confira a grafia.`]);
+    const multi = vars.filter(v => tagInfo(v.tag)?.multi).map(v => v.raw);
+    if (multi.length) a.push(["err", `${multi.join(", ")} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`]);
+    if (vars.some(v => v.uses > 1)) a.push(["warn", "Variável repetida no texto (" + vars.filter(v => v.uses > 1).map(v => `{{${v.n}}}`).join(", ") + "). Confirme se sua integração aceita reaproveitar o número; se não, desmarque a opção de tag repetida."]);
+  }
+  baseAlerts = a;
+  validateExamples();
+}
+
+function validateExamples() {
+  const a = baseAlerts.slice();
+  const missing = state.vars.filter(v => !getExample(v).trim());
+  if (missing.length) a.push(["warn", "Faltam valores de exemplo para " + missing.map(v => `{{${v.n}}}`).join(", ") + ". A Meta exige exemplo para cada variável no cadastro."]);
+  const bad = state.vars.filter(v => /[\n\t]| {5,}/.test(getExample(v)));
+  if (bad.length) a.push(["err", "Valor de variável não pode ter quebra de linha, tab ou mais de 4 espaços seguidos."]);
+  if (!a.length) a.push(["ok", state.meta.trim() ? "Nenhum problema encontrado. Pronto para cadastrar na Meta." : "Aguardando mensagem."]);
+  $("alerts").innerHTML = a.map(([k, m]) => `<div class="alert ${k}">${esc(m)}</div>`).join("");
+}
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1600); }
+
+document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
+  const text = b.dataset.copy === "meta" ? state.meta : state.json;
+  const el = $(b.dataset.copy === "meta" ? "metaOut" : "jsonOut");
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Texto selecionado. Use Ctrl+C."); };
+  try { navigator.clipboard.writeText(text).then(() => toast("Copiado"), fallback); } catch (e) { fallback(); }
+}));
+
+["src", "tplName", "dest"].forEach(id => $(id).addEventListener("input", convert));
+$("reuse").addEventListener("change", convert);
+$("clear").addEventListener("click", () => { $("src").value = ""; convert(); $("src").focus(); });
+
+function insertTag(tag) {
+  const ta = $("src"), s = ta.selectionStart, e = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + tag + ta.value.slice(e);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = s + tag.length;
+  convert();
+}
+
+function loadType(type) {
+  drafts[curType] = { src: $("src").value, name: $("tplName").value, dest: $("dest").value };
+  curType = type;
+  const T = TYPES[type], d = drafts[type];
+  $("src").value = d ? d.src : T.text;
+  $("tplName").value = d ? d.name : T.name;
+  $("dest").value = d ? d.dest : T.dest;
+  $("typeDesc").textContent = T.desc;
+  $("chips").innerHTML = T.tags.map(x => `<button type="button" title="${esc(x.d)}">${esc(wrapTag(x.t))}</button>`).join("");
+  $("chips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => insertTag(b.textContent)));
+  try { localStorage.setItem("tplType", type); } catch (e) {}
+  convert();
+}
+
+const groups = {};
+Object.entries(TYPES).forEach(([k, T]) => (groups[T.group || "Mensagens"] ??= []).push(`<option value="${k}">${esc(T.label)}</option>`));
+$("tplType").innerHTML = Object.entries(groups).map(([g, opts]) => `<optgroup label="${esc(g)}">${opts.join("")}</optgroup>`).join("");
+$("tplType").addEventListener("change", e => loadType(e.target.value));
+let saved = null;
+try { saved = localStorage.getItem("tplType"); } catch (e) {}
+if (saved && TYPES[saved]) { $("tplType").value = saved; curType = saved; }
+const T0 = TYPES[curType];
+$("src").value = T0.text; $("tplName").value = T0.name; $("dest").value = T0.dest;
+loadType(curType);
+</script>
+</body>
+</html>
