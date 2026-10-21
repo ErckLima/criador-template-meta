@@ -181,15 +181,8 @@ const ROTAS_TAGS = [
   { t: "MOTORISTA", max: 80, ex: "José Carlos Albuquerque de Souza Nascimento Pereira dos Santos Vasconcelos Filho", d: "Motorista (nm_pessoa do funcionário, até 80)" },
   { t: "TIPOATIVIDADE", max: 30, ex: "Retirada de Equipamento Pesado", d: "Tipo da atividade (ds_atividade, até 30)" },
   { t: "NUMERO", max: 10, ex: "1234567890", d: "Número da atividade (inteiro, até 10 dígitos)" },
-  { t: "PRODUTOS", soft: true, ex: "Betoneira 400 L Elétrica Monofásica|Andaime Tubular 1,00 x 1,50 m|Escora Metálica Regulável 3,10 m|Compactador de Solo a Percussão",
-    d: "Equipamentos, enviados em uma linha: Produto|Produto|...",
-    why: "[PRODUTOS] é enviado em uma linha só, no formato Produto|Produto|... Quanto mais equipamentos, maior a mensagem; se passar de 1024 caracteres, a Meta recusa o envio.",
-    modal: [
-      "A Meta (WhatsApp Oficial) <strong>não aceita quebra de linha dentro do valor de uma variável</strong>. Essa é uma regra da própria Meta, não do Sisloc.",
-      "Por isso o [PRODUTOS] será enviado em uma linha só, com os equipamentos separados por barra vertical: <code>Produto|Produto|Produto</code>.",
-      "Ainda existe um risco: em atividades com muitos equipamentos, a lista fica longa e a mensagem pode <strong>passar do limite de 1024 caracteres</strong> da Meta. Nesse caso, a Meta recusa o envio e a mensagem não chega.",
-      "Deseja usar a tag assim mesmo?"
-    ] },
+  { t: "PRODUTOS", soft: true, item: "Produto", ex: "Betoneira 400 L Elétrica Monofásica|Andaime Tubular 1,00 x 1,50 m|Escora Metálica Regulável 3,10 m|Compactador de Solo a Percussão",
+    d: "Equipamentos, enviados em uma linha: Produto|Produto|..." },
   { t: "ENDERECO", max: 220, ex: "Avenida Presidente Juscelino Kubitschek de Oliveira Industrial Norte, 123456789012 - Galpão 7, Quadra 15, Lote 22, Setor de Armazenagem Norte - Jardim das Oliveiras Novo Hor - Belo Horizonte Metropolitan - MG - 30110-000", d: "Endereço completo (logradouro 60 + número 12 + complemento 60 + bairro 30 + cidade 30 + UF + CEP, até 220)" }
 ];
 const TYPES = {
@@ -224,7 +217,7 @@ const TYPES = {
       { t: "Endereco entrega", ex: "Rua das Flores, 100 - Centro", d: "Endereço do local da obra/ponto de entrega" },
       { t: "Periodo fatura", ex: "01/09/2026 a 30/09/2026", d: "Período de referência da fatura" },
       { t: "Docto Tomador", ex: "12.345.678/0001-90", d: "CNPJ/CPF do tomador do serviço" },
-      { t: "Parcelas faturamento", ex: "1ª R$ 1.725,00 venc. 20/10/2026; 2ª R$ 1.725,00 venc. 20/11/2026", d: "Tabela com valor e vencimento das parcelas", multi: true }
+      { t: "Parcelas faturamento", soft: true, item: "Parcela", ex: "1ª R$ 1.725,00 venc. 20/10/2026|2ª R$ 1.725,00 venc. 20/11/2026", d: "Parcelas (valor e vencimento), enviadas em uma linha: Parcela|Parcela|..." }
     ]
   },
   boletim: {
@@ -269,7 +262,7 @@ const TYPES = {
 const NOTIF_EX = { RAZAOSOCIAL: "Locadora Exemplo Ltda", NOMEFANTASIA: "Locadora Exemplo", ORIGEM: "Fatura", NUMEROCAR: "88231",
   DATAVENCIMENTO: "25/10/2026", NRDOCLAN: "45120", NUMEROFATURA: "004512", VALORTITULO: "R$ 3.450,00", NUMEROBOLETO: "000123456",
   EMAILCOBRADORA: "financeiro@locadoraexemplo.com.br", CNPJCOBRADORA: "11.222.333/0001-44", NOMECLIENTE: "Construtora Alfa",
-  CODIGOBARRASBOLETO: "34191.79001 01043.510047 91020.150008 1 96610000345000", CONTRATO: "7781", TABELAEQUIP: "Betoneira 400L - 2 un.",
+  CODIGOBARRASBOLETO: "34191.79001 01043.510047 91020.150008 1 96610000345000", CONTRATO: "7781", TABELAEQUIP: "Betoneira 400 L Elétrica Monofásica - 2 un.|Andaime Tubular 1,00 x 1,50 m - 10 un.",
   CPFCNPJ: "12.345.678/0001-90", END_ENTREGRA: "Rua das Flores", CID_ENTREGA: "Belo Horizonte", NUM_ENTREGA: "100", CEP_ENTREGA: "30110-000",
   UF_ENTREGA: "MG", PERIODO: "Mensal", NOMEENTREGA: "Obra Centro", PROXREAJUSTE: "01/11/2026", PROXGERACAO: "01/11/2026",
   DTINICIAL: "01/11/2025", DTFINALFATURAMENTO: "31/10/2026", DTFINAL: "31/10/2027", DESCINDFIN: "IGP-M", VALNOMINAL: "R$ 3.450,00",
@@ -278,7 +271,7 @@ const NOTIF_EX = { RAZAOSOCIAL: "Locadora Exemplo Ltda", NOMEFANTASIA: "Locadora
 Object.values(TYPES).forEach(T => {
   if (typeof T.tags === "string") T.tags = T.tags.split(" ").map(s => {
     const t = s.replace("*", "");
-    return { t, ex: NOTIF_EX[t] ?? "", d: s.endsWith("*") ? "Tabela com várias linhas" : t, multi: s.endsWith("*") };
+    return { t, ex: NOTIF_EX[t] ?? "", d: s.endsWith("*") ? "Itens enviados em uma linha: Equipamento|Equipamento|..." : t, soft: s.endsWith("*"), item: "Equipamento" };
   });
 });
 const wrapTag = t => TYPES[curType].curly ? "{{" + t + "}}" : "[" + t + "]";
@@ -377,7 +370,7 @@ function validate(src, meta, vars) {
     vars.filter(v => tagInfo(v.tag)?.multi).forEach(v => a.push(["err", blockReason(tagInfo(v.tag))]));
     vars.filter(v => tagInfo(v.tag)?.soft).forEach(v => {
       const sobra = 1024 - (state.worst - v.uses * getExample(v).length);
-      a.push([sobra > 0 ? "warn" : "err", tagInfo(v.tag).why + (sobra > 0 ? ` Com o texto e as outras variáveis no tamanho máximo, sobram ${sobra} caracteres para a lista de produtos.` : " O texto e as outras variáveis já ocupam todo o limite.")]);
+      a.push([sobra > 0 ? "warn" : "err", blockReason(tagInfo(v.tag)) + (sobra > 0 ? ` Com o texto e as outras variáveis no tamanho máximo, sobram ${sobra} caracteres para ${v.raw}.` : " O texto e as outras variáveis já ocupam todo o limite.")]);
     });
     if (vars.some(v => v.uses > 1)) a.push(["warn", "Variável repetida no texto (" + vars.filter(v => v.uses > 1).map(v => `{{${v.n}}}`).join(", ") + "). Confirme se sua integração aceita reaproveitar o número; se não, desmarque a opção de tag repetida."]);
   }
@@ -395,13 +388,24 @@ function validateExamples() {
   $("alerts").innerHTML = a.map(([k, m]) => `<div class="alert ${k}">${esc(m)}</div>`).join("");
 }
 
-function blockReason(x) { return x.why || `${wrapTag(x.t)} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`; }
+function softModal(x) {
+  const tag = wrapTag(x.t), it = x.item || "Item";
+  return [
+    "A Meta (WhatsApp Oficial) <strong>não aceita quebra de linha dentro do valor de uma variável</strong>. Essa é uma regra da própria Meta, não do Sisloc.",
+    `Por isso o ${tag} será enviado em uma linha só, com os itens separados por barra vertical: <code>${it}|${it}|${it}</code>.`,
+    "Ainda existe um risco: quando há muitos itens, a lista fica longa e a mensagem pode <strong>passar do limite de 1024 caracteres</strong> da Meta. Nesse caso, a Meta recusa o envio e a mensagem não chega.",
+    "Deseja usar a tag assim mesmo?"
+  ];
+}
+function blockReason(x) {
+  if (x.soft) { const it = x.item || "Item"; return `${wrapTag(x.t)} é enviado em uma linha só, no formato ${it}|${it}|... Quanto mais itens, maior a mensagem; se passar de 1024 caracteres, a Meta recusa o envio.`; }
+  return x.why || `${wrapTag(x.t)} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`; }
 const isAlertTag = x => !!(x && (x.multi || x.soft));
 let dlgCb = null;
 // soft: pergunta se quer usar (onOk/onCancel); multi: só informa
 function openBlocked(x, onOk, onCancel) {
   $("blockTitle").textContent = x.soft ? "Atenção ao usar " + wrapTag(x.t) : wrapTag(x.t) + " não pode ser usada";
-  $("blockBody").innerHTML = (x.modal || [esc(blockReason(x))]).map(p => "<p>" + p + "</p>").join("");
+  $("blockBody").innerHTML = (x.soft ? softModal(x) : [esc(blockReason(x))]).map(p => "<p>" + p + "</p>").join("");
   $("blockCancel").hidden = !x.soft;
   $("blockOk").textContent = x.soft ? "Usar assim mesmo" : "Entendi";
   dlgCb = x.soft ? { ok: onOk, cancel: onCancel } : null;
