@@ -149,7 +149,7 @@ dialog#blockDlg::backdrop { background: rgba(10, 14, 12, .55); }
       </section>
 
       <section>
-        <h2>Variáveis</h2>
+        <h2>Variáveis <button type="button" data-copy="vars" title="Copia cada variável com a tag e o valor de exemplo">Copiar exemplos</button></h2>
         <div class="tablewrap">
           <table>
             <thead><tr><th>Variável</th><th>Tag do sistema</th><th>Exemplo (exigido no cadastro)</th><th>Tam. máx.</th><th>Usos</th></tr></thead>
@@ -423,8 +423,17 @@ let prevBlocked = new Set();
 function toast(msg, ms = 1600) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), ms); }
 
 document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
-  const text = b.dataset.copy === "meta" ? state.meta : state.json;
-  const el = $(b.dataset.copy === "meta" ? "metaOut" : "jsonOut");
+  const kind = b.dataset.copy;
+  if (kind === "vars") {
+    const text = state.vars.map(v => `{{${v.n}}} ${v.raw} = ${getExample(v)}`).join(String.fromCharCode(10));
+    if (!text) { toast("Nenhuma variável para copiar."); return; }
+    const fb = () => { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch (e) {} ta.remove(); toast(ok ? "Copiado" : "Não foi possível copiar."); };
+    try { navigator.clipboard.writeText(text).then(() => toast("Copiado"), fb); } catch (e) { fb(); }
+    return;
+  }
+  const text = kind === "meta" ? state.meta : state.json;
+  const el = $(kind === "meta" ? "metaOut" : "jsonOut");
   const fallback = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Texto selecionado. Use Ctrl+C."); };
   try { navigator.clipboard.writeText(text).then(() => toast("Copiado"), fallback); } catch (e) { fallback(); }
 }));
