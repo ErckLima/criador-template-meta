@@ -46,6 +46,8 @@ select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { font: 12px var(--font-mono); color: var(--tag); background: var(--tag-soft); }
 .chips button:hover { border-color: var(--tag); }
+.chips button.blocked { color: var(--err); background: var(--err-soft); text-decoration: line-through; }
+.chips button.blocked:hover { border-color: var(--err); }
 input[type=text], textarea { font: 13px/1.55 var(--font-mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
 textarea { min-height: 190px; resize: vertical; }
 input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -74,7 +76,7 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
 .alert.ok { background: var(--accent-soft); border-color: var(--accent); }
 .bubble { align-self: flex-start; max-width: 100%; background: var(--bubble); border-radius: 0 10px 10px 10px; padding: 8px 12px; white-space: pre-wrap; word-break: break-word; font-size: 14px; box-sizing: border-box; }
 .meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.toast { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast { max-width: min(420px, calc(100vw - 32px)); box-sizing: border-box; position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 </style>
@@ -162,27 +164,28 @@ const ROTAS_TAGS = [
   { t: "MOTORISTA", ex: "João Silva", d: "Motorista" },
   { t: "TIPOATIVIDADE", ex: "Entrega", d: "Tipo da atividade" },
   { t: "NUMERO", ex: "12345", d: "Número da atividade" },
-  { t: "PRODUTOS", ex: "Betoneira 400L", d: "Equipamentos" },
+  { t: "PRODUTOS", ex: "Betoneira 400L", d: "Equipamentos", multi: true,
+    why: "[PRODUTOS] vem do sistema com uma linha por equipamento, e a Meta não aceita quebra de linha dentro de variável. Tag bloqueada até o sistema enviar os equipamentos em uma linha só." },
   { t: "ENDERECO", ex: "Rua das Flores, 100 - Centro", d: "Endereço" }
 ];
 const TYPES = {
   ativida_concluida: {
     group: "Rotas", label: "Atividade concluída", desc: "Rotas: aviso de atividade concluída pelo motorista.",
     name: "ativida_concluida", dest: "[TELEFONECONTATO]",
-    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] acabou de concluir a [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS].\nAté a próxima!",
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] acabou de concluir a [TIPOATIVIDADE] - [NUMERO].\nAté a próxima!",
     tags: ROTAS_TAGS
   },
   motorista_chegou: {
     group: "Rotas", label: "Motorista chegou", desc: "Rotas: aviso de chegada do motorista ao endereço.",
     name: "motorista_chegou", dest: "[TELEFONECONTATO]",
-    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS] acabou de chegar ao seu endereço: [ENDERECO].\n\nQualquer dúvida entre em contato através do número: (31)3688-1750.",
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] acabou de chegar ao seu endereço: [ENDERECO].\n\nQualquer dúvida entre em contato através do número: (31)3688-1750.",
     tags: ROTAS_TAGS
   },
   motorista_a_caminho: {
     group: "Rotas", label: "Motorista a caminho", desc: "Rotas: aviso de motorista a caminho, com link de acompanhamento do trajeto.",
     name: "motorista_a_caminho", dest: "[TELEFONECONTATO]",
-    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] referente ao(s) equipamento(s) [PRODUTOS] está a caminho do seu endereço: [ENDERECO].\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
-    tags: ROTAS_TAGS.concat({ t: "LINKACOMPANHAMENTOTRAJETO", ex: "https://rotas.exemplo.com/t/AB12CD", d: "Link de acompanhamento do trajeto" })
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] está a caminho do seu endereço: [ENDERECO].\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
+    tags: ROTAS_TAGS.concat({ t: "LINKACOMPANHAMENTOTRAJETO", ex: "https://app.sisloc.com.br/Track/Route/448b8ddd-8ba1-4d00-8242-27fa3b673098", d: "Link de acompanhamento do trajeto" })
   },
   fatura: {
     group: "Faturamento", label: "Envio de fatura", desc: "Envio da nota fiscal pelo WhatsApp Oficial (Meta).",
@@ -335,7 +338,7 @@ function validate(src, meta, vars) {
     const unknown = vars.filter(v => !tagInfo(v.tag)).map(v => v.raw);
     if (unknown.length) a.push(["warn", `Tag fora da lista de ${TYPES[curType].label}: ${unknown.join(", ")}. Confira a grafia.`]);
     const multi = vars.filter(v => tagInfo(v.tag)?.multi).map(v => v.raw);
-    if (multi.length) a.push(["err", `${multi.join(", ")} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`]);
+    vars.filter(v => tagInfo(v.tag)?.multi).forEach(v => a.push(["err", blockReason(tagInfo(v.tag))]));
     if (vars.some(v => v.uses > 1)) a.push(["warn", "Variável repetida no texto (" + vars.filter(v => v.uses > 1).map(v => `{{${v.n}}}`).join(", ") + "). Confirme se sua integração aceita reaproveitar o número; se não, desmarque a opção de tag repetida."]);
   }
   baseAlerts = a;
@@ -352,7 +355,8 @@ function validateExamples() {
   $("alerts").innerHTML = a.map(([k, m]) => `<div class="alert ${k}">${esc(m)}</div>`).join("");
 }
 
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 1600); }
+function blockReason(x) { return x.why || `${wrapTag(x.t)} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`; }
+function toast(msg, ms = 1600) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), ms); }
 
 document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
   const text = b.dataset.copy === "meta" ? state.meta : state.json;
@@ -380,8 +384,11 @@ function loadType(type) {
   $("tplName").value = d ? d.name : T.name;
   $("dest").value = d ? d.dest : T.dest;
   $("typeDesc").textContent = T.desc;
-  $("chips").innerHTML = T.tags.map(x => `<button type="button" title="${esc(x.d)}">${esc(wrapTag(x.t))}</button>`).join("");
-  $("chips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => insertTag(b.textContent)));
+  $("chips").innerHTML = T.tags.map(x => `<button type="button" class="${x.multi ? "blocked" : ""}" data-t="${esc(x.t)}" title="${esc(x.multi ? blockReason(x) : x.d)}">${esc(wrapTag(x.t))}</button>`).join("");
+  $("chips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    const x = tagInfo(b.dataset.t);
+    if (x?.multi) toast(blockReason(x), 6000); else insertTag(b.textContent);
+  }));
   try { localStorage.setItem("tplType", type); } catch (e) {}
   convert();
 }
