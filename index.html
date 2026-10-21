@@ -140,7 +140,7 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
         <h2>Variáveis</h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>Variável</th><th>Tag do sistema</th><th>Exemplo (exigido no cadastro)</th><th>Usos</th></tr></thead>
+            <thead><tr><th>Variável</th><th>Tag do sistema</th><th>Exemplo (exigido no cadastro)</th><th>Tam. máx.</th><th>Usos</th></tr></thead>
             <tbody id="map"></tbody>
           </table>
         </div>
@@ -158,15 +158,15 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
 <script>
 // Tipos de template: tags disponíveis (t), valor de exemplo (ex), descrição (d) e se a tag gera várias linhas (multi)
 const ROTAS_TAGS = [
-  { t: "CONTATOLOCATARIO", ex: "Maria", d: "Contato do locatário" },
-  { t: "LOCATARIO", ex: "Construtora Alfa", d: "Locatário" },
-  { t: "LOCADORA", ex: "Locadora Exemplo", d: "Locadora" },
-  { t: "MOTORISTA", ex: "João Silva", d: "Motorista" },
-  { t: "TIPOATIVIDADE", ex: "Entrega", d: "Tipo da atividade" },
-  { t: "NUMERO", ex: "12345", d: "Número da atividade" },
+  { t: "CONTATOLOCATARIO", max: 50, ex: "Maria Aparecida dos Santos Oliveira Ferreira Costa", d: "Contato do locatário (nome_contato, até 50)" },
+  { t: "LOCATARIO", max: 80, ex: "Construtora e Incorporadora Horizonte Azul Empreendimentos Imobiliários Ltda EPP", d: "Locatário (nm_pessoa, até 80)" },
+  { t: "LOCADORA", max: 70, ex: "Locadora de Máquinas e Equipamentos para Construção Civil Exemplo Ltda", d: "Locadora (razão social da empresa, até 70)" },
+  { t: "MOTORISTA", max: 80, ex: "José Carlos Albuquerque de Souza Nascimento Pereira dos Santos Vasconcelos Filho", d: "Motorista (nm_pessoa do funcionário, até 80)" },
+  { t: "TIPOATIVIDADE", max: 30, ex: "Retirada de Equipamento Pesado", d: "Tipo da atividade (ds_atividade, até 30)" },
+  { t: "NUMERO", max: 10, ex: "1234567890", d: "Número da atividade (inteiro, até 10 dígitos)" },
   { t: "PRODUTOS", ex: "Betoneira 400L", d: "Equipamentos", multi: true,
     why: "[PRODUTOS] vem do sistema com uma linha por equipamento, e a Meta não aceita quebra de linha dentro de variável. Tag bloqueada até o sistema enviar os equipamentos em uma linha só." },
-  { t: "ENDERECO", ex: "Rua das Flores, 100 - Centro", d: "Endereço" }
+  { t: "ENDERECO", max: 220, ex: "Avenida Presidente Juscelino Kubitschek de Oliveira Industrial Norte, 123456789012 - Galpão 7, Quadra 15, Lote 22, Setor de Armazenagem Norte - Jardim das Oliveiras Novo Hor - Belo Horizonte Metropolitan - MG - 30110-000", d: "Endereço completo (logradouro 60 + número 12 + complemento 60 + bairro 30 + cidade 30 + UF + CEP, até 220)" }
 ];
 const TYPES = {
   ativida_concluida: {
@@ -185,7 +185,7 @@ const TYPES = {
     group: "Rotas", label: "Motorista a caminho", desc: "Rotas: aviso de motorista a caminho, com link de acompanhamento do trajeto.",
     name: "motorista_a_caminho", dest: "[TELEFONECONTATO]",
     text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] está a caminho do seu endereço: [ENDERECO].\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
-    tags: ROTAS_TAGS.concat({ t: "LINKACOMPANHAMENTOTRAJETO", ex: "https://app.sisloc.com.br/Track/Route/448b8ddd-8ba1-4d00-8242-27fa3b673098", d: "Link de acompanhamento do trajeto" })
+    tags: ROTAS_TAGS.concat({ t: "LINKACOMPANHAMENTOTRAJETO", max: 74, ex: "https://app.sisloc.com.br/Track/Route/448b8ddd-8ba1-4d00-8242-27fa3b673098", d: "Link de acompanhamento do trajeto (tamanho fixo, 74)" })
   },
   fatura: {
     group: "Faturamento", label: "Envio de fatura", desc: "Envio da nota fiscal pelo WhatsApp Oficial (Meta).",
@@ -289,24 +289,31 @@ function convert() {
   state = { meta, json, vars };
 
   $("metaOut").innerHTML = meta ? esc(meta).replace(/\{\{\d+\}\}/g, m => `<span class="var">${m}</span>`) : '<span class="empty">Cole uma mensagem para começar.</span>';
-  $("metaInfo").textContent = `${meta.length} / 1024 caracteres no corpo · ${vars.length} variáve${vars.length === 1 ? "l" : "is"}`;
+  state.worst = worstLength(meta, vars);
+  $("metaInfo").textContent = `${meta.length} / 1024 caracteres no template · até ${state.worst} com os valores no tamanho máximo · ${vars.length} variáve${vars.length === 1 ? "l" : "is"}`;
   $("jsonOut").textContent = json;
   renderMap(vars);
   renderPreview();
   validate(src, meta, vars);
 }
 
+function worstLength(meta, vars) {
+  const len = {};
+  vars.forEach(v => len[v.n] = tagInfo(v.tag)?.max ?? getExample(v).length);
+  return meta.replace(/{{(d+)}}/g, (m, n) => "x".repeat(len[n] ?? m.length)).length;
+}
+
 function exampleKey(v) { return $("reuse").checked ? v.tag : v.tag + "#" + v.n; }
 
 function renderMap(vars) {
   const tb = $("map");
-  if (!vars.length) { tb.innerHTML = '<tr><td colspan="4" class="empty">Nenhuma tag [TAG] ou {{TAG}} encontrada.</td></tr>'; return; }
+  if (!vars.length) { tb.innerHTML = '<tr><td colspan="5" class="empty">Nenhuma tag [TAG] ou {{TAG}} encontrada.</td></tr>'; return; }
   tb.innerHTML = vars.map(v => {
     const k = exampleKey(v);
     const val = examples[k] ?? tagInfo(v.tag)?.ex ?? "";
     return `<tr><td class="n"><span class="var">{{${v.n}}}</span></td><td><span class="tag">${esc(v.raw)}</span></td>
       <td><input type="text" id="ex-${v.n}" data-k="${esc(k)}" value="${esc(val).replace(/"/g, "&quot;")}" placeholder="valor de exemplo"></td>
-      <td class="uses">${v.uses}×</td></tr>`;
+      <td class="uses">${tagInfo(v.tag)?.max ?? "—"}</td><td class="uses">${v.uses}×</td></tr>`;
   }).join("");
   tb.querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => { examples[inp.dataset.k] = inp.value; renderPreview(); validateExamples(); }));
 }
@@ -332,6 +339,7 @@ function validate(src, meta, vars) {
     if (/\{\{\d+\}\}[\s.!?]*$/.test(t)) a.push(["err", "A Meta rejeita mensagem que termina com variável. Adicione um texto fixo no final."]);
     if (/\}\}\s*\(?\s*\{\{/.test(meta)) a.push(["err", "Há variáveis coladas, ex.: {{1}}{{2}}, {{1}} {{2}} ou {{1}}({{2}}). Separe com texto fixo, como \"{{1}}, aqui é da {{2}}\"."]);
     if (meta.length > 1024) a.push(["err", `Corpo com ${meta.length} caracteres. O limite da Meta é 1024.`]);
+    else if (state.worst > 1024) a.push(["err", `Com as variáveis no tamanho máximo, a mensagem chega a ${state.worst} caracteres e passa do limite de 1024 da Meta. Encurte o texto fixo ou tire alguma variável.`]);
     const words = t.replace(/\{\{\d+\}\}/g, " ").split(/\s+/).filter(w => /[A-Za-zÀ-ÿ]/.test(w)).length;
     if (vars.length && words < vars.length * 2) a.push(["warn", "Muitas variáveis para pouco texto fixo. A Meta pode recusar o template por isso."]);
     if (/\n{3,}/.test(meta)) a.push(["warn", "Há mais de uma linha em branco seguida. A Meta pode recusar."]);
