@@ -76,6 +76,16 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
 .alert.ok { background: var(--accent-soft); border-color: var(--accent); }
 .bubble { align-self: flex-start; max-width: 100%; background: var(--bubble); border-radius: 0 10px 10px 10px; padding: 8px 12px; white-space: pre-wrap; word-break: break-word; font-size: 14px; box-sizing: border-box; }
 .meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+dialog#blockDlg { max-width: min(520px, calc(100vw - 32px)); box-sizing: border-box; border: 1px solid var(--err); border-radius: 10px; padding: 20px; background: var(--surface); color: var(--fg); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+dialog#blockDlg::backdrop { background: rgba(10, 14, 12, .55); }
+.dlg-head { display: flex; align-items: center; gap: 10px; }
+.dlg-head h3 { margin: 0; font-size: 17px; font-weight: 600; text-wrap: balance; }
+.dlg-icon { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--err); color: var(--surface); font-weight: 700; }
+.dlg-body { display: flex; flex-direction: column; gap: 10px; margin-block: 14px 18px; font-size: 14px; line-height: 1.55; }
+.dlg-body p { margin: 0; }
+.dlg-body strong { color: var(--err); }
+.dlg-actions { display: flex; justify-content: flex-end; margin: 0; }
+.dlg-actions button { font-size: 14px; padding: 8px 18px; color: var(--surface); background: var(--accent); }
 .toast { max-width: min(420px, calc(100vw - 32px)); box-sizing: border-box; position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
@@ -153,6 +163,11 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
     </div>
   </div>
 </div>
+<dialog id="blockDlg" aria-labelledby="blockTitle">
+  <div class="dlg-head"><span class="dlg-icon" aria-hidden="true">!</span><h3 id="blockTitle"></h3></div>
+  <div id="blockBody" class="dlg-body"></div>
+  <form method="dialog" class="dlg-actions"><button type="submit" id="blockOk" autofocus>Entendi</button></form>
+</dialog>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
@@ -165,7 +180,13 @@ const ROTAS_TAGS = [
   { t: "TIPOATIVIDADE", max: 30, ex: "Retirada de Equipamento Pesado", d: "Tipo da atividade (ds_atividade, até 30)" },
   { t: "NUMERO", max: 10, ex: "1234567890", d: "Número da atividade (inteiro, até 10 dígitos)" },
   { t: "PRODUTOS", ex: "Betoneira 400L", d: "Equipamentos", multi: true,
-    why: "[PRODUTOS] vem do sistema com uma linha por equipamento, e a Meta não aceita quebra de linha dentro de variável. Tag bloqueada até o sistema enviar os equipamentos em uma linha só." },
+    why: "[PRODUTOS] não pode ser usada: a Meta não aceita quebra de linha dentro de variável, e juntar os equipamentos em uma linha só faz a mensagem passar do limite de 1024 caracteres.",
+    modal: [
+      "A Meta (WhatsApp Oficial) <strong>não aceita quebra de linha dentro do valor de uma variável</strong>. Essa é uma regra da própria Meta, não do Sisloc.",
+      "O [PRODUTOS] lista um equipamento por linha. Do jeito que é gerado hoje, a Meta recusa o envio da mensagem.",
+      "Juntar todos os equipamentos em uma linha só também não resolve: uma atividade com vários equipamentos gera um texto longo, e a mensagem <strong>passa do limite de 1024 caracteres</strong> da Meta.",
+      "Por isso a tag fica bloqueada nos templates da Meta."
+    ] },
   { t: "ENDERECO", max: 220, ex: "Avenida Presidente Juscelino Kubitschek de Oliveira Industrial Norte, 123456789012 - Galpão 7, Quadra 15, Lote 22, Setor de Armazenagem Norte - Jardim das Oliveiras Novo Hor - Belo Horizonte Metropolitan - MG - 30110-000", d: "Endereço completo (logradouro 60 + número 12 + complemento 60 + bairro 30 + cidade 30 + UF + CEP, até 220)" }
 ];
 const TYPES = {
@@ -289,6 +310,10 @@ function convert() {
   state = { meta, json, vars };
 
   $("metaOut").innerHTML = meta ? esc(meta).replace(/\{\{\d+\}\}/g, m => `<span class="var">${m}</span>`) : '<span class="empty">Cole uma mensagem para começar.</span>';
+  const blockedNow = new Set(vars.filter(v => tagInfo(v.tag)?.multi).map(v => v.tag));
+  const novo = [...blockedNow].find(t => !prevBlocked.has(t));
+  prevBlocked = blockedNow;
+  if (novo && convert.ready) openBlocked(tagInfo(novo));
   state.worst = worstLength(meta, vars);
   $("metaInfo").textContent = `${meta.length} / 1024 caracteres no template · até ${state.worst} com os valores no tamanho máximo · ${vars.length} variáve${vars.length === 1 ? "l" : "is"}`;
   $("jsonOut").textContent = json;
@@ -364,6 +389,13 @@ function validateExamples() {
 }
 
 function blockReason(x) { return x.why || `${wrapTag(x.t)} gera uma tabela com várias linhas. A Meta não aceita quebra de linha dentro de variável; o sistema precisa enviar esse valor em uma linha só.`; }
+function openBlocked(x) {
+  $("blockTitle").textContent = wrapTag(x.t) + " não pode ser usada";
+  $("blockBody").innerHTML = (x.modal || [esc(blockReason(x))]).map(p => "<p>" + p + "</p>").join("");
+  const d = $("blockDlg");
+  if (typeof d.showModal === "function") { if (!d.open) d.showModal(); } else toast(blockReason(x), 8000);
+}
+let prevBlocked = new Set();
 function toast(msg, ms = 1600) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), ms); }
 
 document.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", () => {
@@ -395,7 +427,7 @@ function loadType(type) {
   $("chips").innerHTML = T.tags.map(x => `<button type="button" class="${x.multi ? "blocked" : ""}" data-t="${esc(x.t)}" title="${esc(x.multi ? blockReason(x) : x.d)}">${esc(wrapTag(x.t))}</button>`).join("");
   $("chips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
     const x = tagInfo(b.dataset.t);
-    if (x?.multi) toast(blockReason(x), 6000); else insertTag(b.textContent);
+    if (x?.multi) openBlocked(x); else insertTag(b.textContent);
   }));
   try { localStorage.setItem("tplType", type); } catch (e) {}
   convert();
@@ -411,6 +443,7 @@ if (saved && TYPES[saved]) { $("tplType").value = saved; curType = saved; }
 const T0 = TYPES[curType];
 $("src").value = T0.text; $("tplName").value = T0.name; $("dest").value = T0.dest;
 loadType(curType);
+convert.ready = true;
 </script>
 </body>
 </html>
