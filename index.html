@@ -76,6 +76,14 @@ td.uses { color: var(--muted); text-align: right; white-space: nowrap; }
 .alert.ok { background: var(--accent-soft); border-color: var(--accent); }
 .bubble { align-self: flex-start; max-width: 100%; background: var(--bubble); border-radius: 0 10px 10px 10px; padding: 8px 12px; white-space: pre-wrap; word-break: break-word; font-size: 14px; box-sizing: border-box; }
 .meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.guide-btn { margin-left: auto; font-size: 13px; padding: 7px 12px; }
+dialog#guideDlg { width: min(1000px, calc(100vw - 32px)); height: min(900px, calc(100vh - 32px)); max-width: none; max-height: none; box-sizing: border-box; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--fg); overflow: hidden; }
+dialog#guideDlg[open] { display: flex; flex-direction: column; }
+dialog#guideDlg::backdrop { background: rgba(10, 14, 12, .55); }
+.guide-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.guide-head form { margin: 0; }
+.guide-head a { color: var(--accent); font-size: 13px; font-weight: 500; }
+#guideFrame { flex: 1; width: 100%; border: 0; background: var(--bg); }
 dialog#blockDlg { max-width: min(520px, calc(100vw - 32px)); box-sizing: border-box; border: 1px solid var(--err); border-radius: 10px; padding: 20px; background: var(--surface); color: var(--fg); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
 dialog#blockDlg::backdrop { background: rgba(10, 14, 12, .55); }
 .dlg-head { display: flex; align-items: center; gap: 10px; }
@@ -105,6 +113,7 @@ dialog#blockDlg::backdrop { background: rgba(10, 14, 12, .55); }
     <label for="tplType">Tipo de template
       <select id="tplType"></select></label>
     <span class="meta" id="typeDesc"></span>
+    <button type="button" id="guideBtn" class="guide-btn" hidden>Guia de configuração do Rotas (PDF)</button>
   </div>
 
   <div class="grid">
@@ -165,6 +174,16 @@ dialog#blockDlg::backdrop { background: rgba(10, 14, 12, .55); }
     </div>
   </div>
 </div>
+<dialog id="guideDlg" aria-labelledby="guideTitle">
+  <div class="guide-head">
+    <strong id="guideTitle">Guia de configuração: WhatsApp nas rotas do Services</strong>
+    <div class="btns">
+      <a href="guia-whatsapp-rotas.pdf" target="_blank" rel="noopener">Abrir em nova aba</a>
+      <form method="dialog"><button type="submit">Fechar</button></form>
+    </div>
+  </div>
+  <iframe id="guideFrame" title="Guia de configuração do WhatsApp nas rotas"></iframe>
+</dialog>
 <dialog id="blockDlg" aria-labelledby="blockTitle">
   <div class="dlg-head"><span class="dlg-icon" aria-hidden="true">!</span><h3 id="blockTitle"></h3></div>
   <div id="blockBody" class="dlg-body"></div>
@@ -418,6 +437,12 @@ $("blockDlg").addEventListener("close", () => {
   if (!cb) return;
   if ($("blockDlg").returnValue === "ok") cb.ok && cb.ok(); else cb.cancel && cb.cancel();
 });
+// guia em PDF: abre no visualizador do navegador, sem baixar; o iframe só carrega no primeiro clique
+$("guideBtn").addEventListener("click", () => {
+  const f = $("guideFrame"), d = $("guideDlg");
+  if (!f.getAttribute("src")) f.src = "guia-whatsapp-rotas.pdf#view=FitH";
+  if (typeof d.showModal === "function") d.showModal(); else window.open("guia-whatsapp-rotas.pdf", "_blank");
+});
 function removeTag(x) { $("src").value = $("src").value.split(wrapTag(x.t)).join(""); convert(); }
 let prevBlocked = new Set();
 function toast(msg, ms = 1600) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), ms); }
@@ -457,6 +482,7 @@ function loadType(type) {
   $("tplName").value = d ? d.name : T.name;
   $("dest").value = d ? d.dest : T.dest;
   $("typeDesc").textContent = T.desc;
+  $("guideBtn").hidden = T.group !== "Rotas";
   $("chips").innerHTML = T.tags.map(x => `<button type="button" class="${isAlertTag(x) ? "blocked" : ""}" data-t="${esc(x.t)}" title="${esc(isAlertTag(x) ? blockReason(x) : x.d)}">${esc(wrapTag(x.t))}</button>`).join("");
   $("chips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
     const x = tagInfo(b.dataset.t);
