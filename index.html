@@ -201,8 +201,8 @@ const TYPES = {
   motorista_a_caminho: {
     group: "Rotas", label: "Motorista a caminho", desc: "Rotas: aviso de motorista a caminho, com link de acompanhamento do trajeto.",
     name: "motorista_a_caminho", dest: "[CONTATOLOCATARIO]",
-    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] está a caminho do seu endereço: [ENDERECO]. Ele está a [DISTANCIA] do seu endereço.\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
-    tags: ROTAS_TAGS.concat({ t: "DISTANCIA", ex: "1.234,56 km", d: "Distância do motorista até o endereço" }, { t: "LINKACOMPANHAMENTOTRAJETO", max: 74, ex: "https://app.sisloc.com.br/Track/Route/448b8ddd-8ba1-4d00-8242-27fa3b673098", d: "Link de acompanhamento do trajeto (tamanho fixo, 74)" })
+    text: "Olá, [CONTATOLOCATARIO], aqui é da [LOCADORA]!\nO motorista [MOTORISTA] da [TIPOATIVIDADE] - [NUMERO] está a caminho do seu endereço: [ENDERECO]. Ele está a [DISTANCIA] e a previsão é que chegue em [TEMPOPREVISTO].\nAcompanhe o trajeto pelo link: [LINKACOMPANHAMENTOTRAJETO]\nAté logo!",
+    tags: ROTAS_TAGS.concat({ t: "DISTANCIA", ex: "1.234,56 km", d: "Distância do motorista até o endereço" }, { t: "TEMPOPREVISTO", ex: "1 h 25 min", d: "Tempo previsto até a chegada" },{ t: "LINKACOMPANHAMENTOTRAJETO", max: 74, ex: "https://app.sisloc.com.br/Track/Route/448b8ddd-8ba1-4d00-8242-27fa3b673098", d: "Link de acompanhamento do trajeto (tamanho fixo, 74)" })
   },
   fatura: {
     group: "Faturamento", label: "Envio de fatura", desc: "Envio da nota fiscal pelo WhatsApp Oficial (Meta).",
