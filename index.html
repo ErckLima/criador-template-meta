@@ -267,25 +267,25 @@ const TYPES = {
   },
   car_vencido: {
     group: "Notificações", label: "CAR vencido", desc: "Cobrança de título vencido (contas a receber).", curly: true,
-    name: "car_vencido", dest: "[TELEFONECONTATO]",
+    name: "car_vencido", dest: "{{TELEFONECONTATO}}",
     text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nIdentificamos que o título da fatura {{NUMEROFATURA}}, no valor de {{VALORTITULO}}, venceu em {{DATAVENCIMENTO}}.\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nSe o pagamento já foi feito, desconsidere esta mensagem.",
     tags: "RAZAOSOCIAL NOMEFANTASIA ORIGEM NUMEROCAR DATAVENCIMENTO NRDOCLAN NUMEROFATURA VALORTITULO NUMEROBOLETO EMAILCOBRADORA CNPJCOBRADORA NOMECLIENTE CODIGOBARRASBOLETO"
   },
   car_vencer: {
     group: "Notificações", label: "CAR a vencer", desc: "Lembrete de título a vencer (contas a receber).", curly: true,
-    name: "car_a_vencer", dest: "[TELEFONECONTATO]",
+    name: "car_a_vencer", dest: "{{TELEFONECONTATO}}",
     text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nLembramos que o título da fatura {{NUMEROFATURA}}, no valor de {{VALORTITULO}}, vence em {{DATAVENCIMENTO}}.\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
     tags: "RAZAOSOCIAL NOMEFANTASIA NUMEROCAR ORIGEM DATAVENCIMENTO NRDOCLAN NUMEROFATURA VALORTITULO NUMEROBOLETO EMAILCOBRADORA CNPJCOBRADORA NOMECLIENTE CODIGOBARRASBOLETO"
   },
   renovacao: {
     group: "Notificações", label: "Renovação", desc: "Aviso de renovação/reajuste de contrato.", curly: true,
-    name: "renovacao_contrato", dest: "[TELEFONECONTATO]",
+    name: "renovacao_contrato", dest: "{{TELEFONECONTATO}}",
     text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nO contrato {{CONTRATO}} será reajustado em {{PROXREAJUSTE}} pelo índice {{INDICECORRECAO}}, com variação de {{VALPERCENTUAL}}.\nValor atual: {{VALNOMINAL}}\nValor corrigido: {{VALCORRIGIDO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
     tags: "RAZAOSOCIAL NOMEFANTASIA EMAILCOBRADORA CNPJCOBRADORA CONTRATO TABELAEQUIP* NOMECLIENTE CPFCNPJ END_ENTREGRA CID_ENTREGA NUM_ENTREGA CEP_ENTREGA UF_ENTREGA PERIODO NOMEENTREGA PROXREAJUSTE PROXGERACAO DTINICIAL DTFINALFATURAMENTO DTFINAL DESCINDFIN VALNOMINAL INDICECORRECAO VALPERCENTUAL VALCORRIGIDO"
   },
   nfse: {
     group: "Notificações", label: "NFS-e", desc: "Envio da nota fiscal de serviço eletrônica.", curly: true,
-    name: "envio_nfse", dest: "[TELEFONECONTATO]",
+    name: "envio_nfse", dest: "{{TELEFONECONTATO}}",
     text: "Olá, {{NOMECLIENTE}}! Aqui é da {{NOMEFANTASIA}}.\nA NFS-e nº {{NFE_NUMERO}}, emitida em {{DT_EMISSAO_NF}}, no valor de {{VALORNOTA}}, já está disponível.\nVencimento: {{DATAVENCIMENTO}}\nCódigo de barras para pagamento: {{CODIGOBARRASBOLETO}}\nDúvidas: {{EMAILCOBRADORA}}\nObrigado!",
     tags: "RAZAOSOCIAL NOMEFANTASIA NFE_NUMERO VALORNOTA DT_EMISSAO_NF EMAILCOBRADORA DATAVENCIMENTO CNPJCOBRADORA CPFCNPJCLIENTE RAZAOSOCIALCLIENTE NOMECLIENTE CODIGOBARRASBOLETO"
   }
@@ -385,7 +385,10 @@ function validate(src, meta, vars) {
   const name = $("tplName").value.trim();
   if (!name) a.push(["err", "Informe o nome do template."]);
   else if (!/^[a-z0-9_]+$/.test(name)) a.push(["err", "Nome do template só aceita letras minúsculas, números e _ (sem acento ou espaço)."]);
-  if (!/^(\[[^\[\]\n]+\]|\{\{[^{}\n]+\}\})$/.test($("dest").value.trim())) a.push(["warn", "O destinatário deveria ser uma única tag, ex.: [TELEFONECONTATO]."]);
+  const destVal = $("dest").value.trim();
+  if (TYPES[curType].curly) {
+    if (!/^\{\{[^{}\n]+\}\}$/.test(destVal)) a.push(["err", "Nas notificações, o destinatário usa o formato {{TAG}}, ex.: {{TELEFONECONTATO}}."]);
+  } else if (!/^\[[^\[\]\n]+\]$/.test(destVal)) a.push(["warn", "O destinatário deveria ser uma única tag no formato [TAG], ex.: [CONTATOLOCATARIO]."]);
   const t = meta.trim();
   if (t) {
     if (/^\{\{\d+\}\}/.test(t)) a.push(["err", "A Meta rejeita mensagem que começa com variável. Coloque um texto antes, ex.: \"Olá, {{1}}\"."]);
